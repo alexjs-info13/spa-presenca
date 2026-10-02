@@ -26,7 +26,7 @@ O SPA é uma solução desenvolvida para automatizar o processo de chamada e con
 ```
 ## 👨‍💻 Autor
 
-**Alex Junio da Silva**  
+**Alex Junio da Silva e Emilly Alcântara**  
 Estudante de TI | Desenvolvedor
 
 [![Gmail](https://img.shields.io/badge/Gmail-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:alexjs.lan@gmail.com)
