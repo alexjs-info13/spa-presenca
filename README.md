@@ -23,6 +23,12 @@ O SPA é uma solução desenvolvida para automatizar o processo de chamada e con
 * **Versionamento:** Git e GitHub
 * **Paradigmas:** Programação Orientada a Objetos (POO) e Normalização de Dados
 
+## 📂 Estrutura do Repositório
+* `database.sql`: Script completo de criação da base de dados, tabelas relacionais e restrições no MySQL.
+* `main.py`: Código principal em Python aplicando Programação Orientada a Objetos (POO).
+* `DOCUMENTACAO_V1.md`: Documentação técnica de planejamento.
+* `DOCUMENTACAO_V2.md`: Documentação técnica de desenvolvimento e testes.
+
 ## 🚀 Como Executar o Projeto
 1. Clone este repositório:
 ```bash
