@@ -12,6 +12,10 @@ O SPA é uma solução desenvolvida para automatizar o processo de chamada e con
 - [ ] Validação de Usuário (Professor/Aluno)
 - [ ] Geração de Código de Chamada Temporário
 
+## 📚 Documentação do Projeto
+* [Acessar Documentação V1 (Planejamento)](DOCUMENTACAO_V1.md)
+* [Acessar Documentação V2 (Desenvolvimento e Testes)](DOCUMENTACAO_V2.md)
+
 ## 💻 Tecnologias Utilizadas
 * **Linguagem:** Python
 * **Interface:** Tkinter
