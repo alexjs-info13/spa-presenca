@@ -1,27 +1,27 @@
 # 🎓 Sistema de Presença Acadêmica (SPA)
 
-> Software para Marcação de Presença e Controle de Frequência, desenvolvido como projeto prático do curso Técnico em TI no Grau Técnico.
+> Software para Marcação de Presença e Controle de Frequência, desenvolvido como projeto prático para a matéria de **Banco de Dados** no curso Técnico em TI no Grau Técnico.
 
 ## 📖 Sobre o Projeto
-O SPA é uma solução desenvolvida para automatizar o processo de chamada e controle de frequência escolar. O sistema permite que o estudante registre sua presença garantindo a autenticidade da informação por meio de dupla validação (geolocalização e biometria facial) sob a supervisão do professor.
+O SPA é uma solução desenvolvida para automatizar o processo de chamada e controle de frequência escolar. O sistema gerencia o armazenamento seguro de usuários, turmas, disciplinas e registros de presença, garantindo a autenticidade por meio de dupla validação (geolocalização e biometria facial) sob a supervisão do professor.
 
 ## ⚙️ Funcionalidades (Fase 1 e 2)
 - [x] Documentação Técnica V1 (Requisitos, MoSCoW, Casos de Uso)
+- [x] Modelagem Conceitual e Lógica de Banco de Dados (MER/DER)
 - [x] Prototipação e Modelagem Orientada a Objetos (POO)
+- [ ] Implementação de Consultas e Conexão com Banco de Dados
 - [ ] Interface Gráfica de Login (Python/Tkinter)
-- [ ] Validação de Usuário (Professor/Aluno)
-- [ ] Geração de Código de Chamada Temporário
 
 ## 📚 Documentação do Projeto
 * [Acessar Documentação V1 (Planejamento)](DOCUMENTACAO_V1.md)
 * [Acessar Documentação V2 (Desenvolvimento e Testes)](DOCUMENTACAO_V2.md)
 
-## 💻 Tecnologias Utilizadas
+## 💻 Tecnologias e Conceitos Utilizados
 * **Linguagem:** Python
+* **Banco de Dados:** MySQL / Relacional (Modelagem Entidade-Relacionamento)
 * **Interface:** Tkinter
 * **Versionamento:** Git e GitHub
-* **Paradigmas:** Programação Orientada a Objetos (POO)
-* **Design/Diagramação:** UML e draw.io
+* **Paradigmas:** Programação Orientada a Objetos (POO) e Normalização de Dados
 
 ## 🚀 Como Executar o Projeto
 1. Clone este repositório:
