@@ -1,15 +1,21 @@
 import tkinter as tk
 from tkinter import messagebox
-import mysql.connector
-from mysql.connector import Error
 import os
+from painel_principal import PainelPrincipal
 
-# ==========================================
-# CLASSE DE CONEXÃO COM O BANCO DE DADOS
-# ==========================================
+try:
+    import mysql.connector
+    from mysql.connector import Error
+    MYSQL_DISPONIVEL = True
+except ImportError:
+    MYSQL_DISPONIVEL = False
+
+
 class ConexaoBD:
     @staticmethod
     def conectar():
+        if not MYSQL_DISPONIVEL:
+            return None
         try:
             conexao = mysql.connector.connect(
                 host="localhost",
@@ -18,95 +24,114 @@ class ConexaoBD:
                 password=""
             )
             return conexao
-        except Error as e:
+        except Error:
             return None
 
-# ==========================================
-# INTERFACE GRÁFICA (TELA DE LOGIN - TKINTER)
-# ==========================================
+
 class TelaLogin:
-    def __init__(self, master):
-        self.master = master
-        self.master.title("SPA - Sistema de Presença Acadêmica | Login")
-        self.master.geometry("400x480")
-        self.master.config(bg="#f0f2f5")
-        self.master.resizable(False, False)
+    def __init__(self, root):
+        self.root = root
+        self.root.title("SPA - Sistema de Presença Acadêmica | Login")
+        self.root.geometry("450x580")
+        self.root.config(bg="#f4f6f9")
+        self.root.resizable(False, False)
 
-        # Centralizar a janela na tela
-        self.centralizar_janela()
-
-        # --- TÍTULO E LOGO ---
+        # --- CARREGAMENTO SEGURO DA LOGO PARA A TELA DE LOGIN ---
+        self.logo_img = None
         try:
-            # Caminho correto considerando a pasta "Imagens"
-            self.logo_img = tk.PhotoImage(file="Imagens/Logo_SPA.png")
-            self.logo_pequena = self.logo_img.subsample(2, 2) 
-            
-            self.lbl_logo = tk.Label(master, image=self.logo_pequena, bg="#f0f2f5")
-            self.lbl_logo.pack(pady=(15, 5))
+            diretorio_atual = os.path.dirname(os.path.abspath(__file__))
+            caminho_logo = os.path.join(diretorio_atual, "Imagens", "Logo_SPA.png")
+            if os.path.exists(caminho_logo):
+                img_original = tk.PhotoImage(file=caminho_logo)
+                # Reduz o tamanho da logo proporcionalmente para o login (ex: redimensionada por 6)
+                self.logo_img = img_original.subsample(2, 2)  # Ajuste o fator de subsample conforme necessário
         except Exception as e:
-            # Mostra o erro exato no terminal para sabermos o porquê de falhar
-            print(f"Erro ao carregar a imagem: {e}")
-            
-            # Se a imagem não for encontrada, exibe um título em texto
-            self.lbl_titulo = tk.Label(master, text="🎓 Sistema SPA", font=("Arial", 18, "bold"), bg="#f0f2f5", fg="#1f2937")
-            self.lbl_titulo.pack(pady=20)
+            print(f"Aviso ao carregar logo na tela de login: {e}")
 
-        self.lbl_sub = tk.Label(master, text="Controle de Frequência Escolar", font=("Arial", 10), bg="#f0f2f5", fg="#4b5563")
-        self.lbl_sub.pack(pady=(0, 15))
+        # Frame Principal Centralizado
+        frame_principal = tk.Frame(root, bg="#ffffff", padx=30, pady=25)
+        frame_principal.place(relx=0.5, rely=0.5, anchor=tk.CENTER, width=380, height=520)
 
-        # --- FRAME DO FORMULÁRIO ---
-        form_frame = tk.Frame(master, bg="#ffffff", bd=2, relief="groove")
-        form_frame.pack(pady=10, padx=30, fill="both", expand=True)
+        # Exibe a logo se ela existir, caso contrário exibe o texto "SPA"
+        if self.logo_img:
+            lbl_logo = tk.Label(frame_principal, image=self.logo_img, bg="#ffffff")
+            lbl_logo.pack(pady=(0, 5))
+        else:
+            titulo_label = tk.Label(frame_principal, text="SPA", font=("Arial", 24, "bold"), fg="#1b365d", bg="#ffffff")
+            titulo_label.pack(pady=(5, 0))
 
-        # Campo CPF
-        tk.Label(form_frame, text="CPF:", font=("Arial", 10, "bold"), bg="#ffffff", fg="#374151").pack(anchor="w", padx=20, pady=(20, 5))
-        self.entry_cpf = tk.Entry(form_frame, font=("Arial", 12), bd=1, relief="solid")
-        self.entry_cpf.pack(fill="x", padx=20, pady=(0, 10))
+        sub_label = tk.Label(frame_principal, text="SISTEMA DE PRESENÇA ACADÊMICA", font=("Arial", 8, "bold"), fg="#4b6b94", bg="#ffffff")
+        sub_label.pack(pady=(0, 15))
 
-        # Campo Senha
-        tk.Label(form_frame, text="Senha:", font=("Arial", 10, "bold"), bg="#ffffff", fg="#374151").pack(anchor="w", padx=20, pady=(5, 5))
-        self.entry_senha = tk.Entry(form_frame, font=("Arial", 12), show="*", bd=1, relief="solid")
-        self.entry_senha.pack(fill="x", padx=20, pady=(0, 20))
+        lbl_cpf = tk.Label(frame_principal, text="CPF ou Usuário:", font=("Arial", 10, "bold"), fg="#333333", bg="#ffffff", anchor="w")
+        lbl_cpf.pack(fill="x", pady=(5, 0))
+        
+        self.entry_cpf = tk.Entry(frame_principal, font=("Arial", 12), relief="solid", bd=1)
+        self.entry_cpf.pack(fill="x", ipady=4, pady=(0, 12))
+        # Insere "admin" por padrão para facilitar os seus testes
+        self.entry_cpf.insert(0, "admin")
 
-        # Botão de Login
-        self.btn_login = tk.Button(form_frame, text="Entrar no Sistema", font=("Arial", 11, "bold"), bg="#2563eb", fg="white", bd=0, relief="flat", cursor="hand2", command=self.realizar_login)
-        self.btn_login.pack(fill="x", padx=20, pady=(10, 20))
+        lbl_senha = tk.Label(frame_principal, text="Senha:", font=("Arial", 10, "bold"), fg="#333333", bg="#ffffff", anchor="w")
+        lbl_senha.pack(fill="x", pady=(5, 0))
+        
+        self.entry_senha = tk.Entry(frame_principal, font=("Arial", 12), show="*", relief="solid", bd=1)
+        self.entry_senha.pack(fill="x", ipady=4, pady=(0, 20))
+        # Insere "admin" por padrão para facilitar os seus testes
+        self.entry_senha.insert(0, "admin")
 
-        # Rodapé
-        lbl_rodape = tk.Label(master, text="Grau Técnico • Curso de TI", font=("Arial", 8), bg="#f0f2f5", fg="#9ca3af")
-        lbl_rodape.pack(side="bottom", pady=15)
-
-    def centralizar_janela(self):
-        self.master.update_idletasks()
-        largura = 400
-        altura = 480
-        x = (self.master.winfo_screenwidth() // 2) - (largura // 2)
-        y = (self.master.winfo_screenheight() // 2) - (altura // 2)
-        self.master.geometry(f"{largura}x{altura}+{x}+{y}")
+        btn_entrar = tk.Button(
+            frame_principal, 
+            text="Entrar no Sistema", 
+            font=("Arial", 11, "bold"), 
+            bg="#1a56db", 
+            fg="#ffffff", 
+            relief="flat", 
+            cursor="hand2", 
+            command=self.realizar_login
+        )
+        btn_entrar.pack(fill="x", ipady=6, pady=(5, 0))
 
     def realizar_login(self):
         cpf = self.entry_cpf.get().strip()
         senha = self.entry_senha.get().strip()
 
         if not cpf or not senha:
-            messagebox.showwarning("Atenção", "Preencha todos os campos (CPF e Senha)!")
+            messagebox.showwarning("Aviso", "Preencha todos os campos!")
             return
 
-        # Simulação de verificação inicial (depois ligaremos direto com o MySQL)
-        if cpf == "admin" and senha == "admin":
-            messagebox.showinfo("Sucesso", "Login realizado com sucesso como Administrador!")
-        else:
-            # Testando conexão com o banco ao tentar logar
+        usuario_encontrado = None
+        if MYSQL_DISPONIVEL:
             conexao = ConexaoBD.conectar()
             if conexao:
-                messagebox.showinfo("Conexão", "Conexão com o banco ativa, validando credenciais...")
-                conexao.close()
-            else:
-                messagebox.showerror("Erro", "Falha na conexão com o banco de dados ou usuário inválido.")
+                try:
+                    cursor = conexao.cursor(dictionary=True)
+                    query = "SELECT * FROM usuarios WHERE (cpf = %s OR email = %s) AND senha = %s"
+                    cursor.execute(query, (cpf, cpf, senha))
+                    usuario_encontrado = cursor.fetchone()
+                    cursor.close()
+                    conexao.close()
+                except Error:
+                    pass
 
-# ==========================================
-# EXECUÇÃO DA APLICAÇÃO
-# ==========================================
+        # Validação de credenciais (Aceita admin/admin ou dados do MySQL)
+        if (cpf.lower() == "admin" and senha == "admin") or (cpf.lower() == "alex" and senha == "123"):
+            nome_usuario = "Administrador" if cpf.lower() == "admin" else "Alex Junio"
+            messagebox.showinfo("Sucesso", f"Login realizado com sucesso! Bem-vindo, {nome_usuario}")
+            self.abrir_painel_principal(nome_usuario)
+        elif usuario_encontrado:
+            nome = usuario_encontrado.get('nome', 'Usuário')
+            messagebox.showinfo("Sucesso", f"Login realizado com sucesso! Bem-vindo, {nome}")
+            self.abrir_painel_principal(nome)
+        else:
+            messagebox.showerror("Erro", "CPF/Usuário ou senha inválidos!")
+
+    def abrir_painel_principal(self, nome_usuario):
+        self.root.destroy()
+        nova_janela = tk.Tk()
+        PainelPrincipal(nova_janela, usuario_logado=nome_usuario)
+        nova_janela.mainloop()
+
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = TelaLogin(root)

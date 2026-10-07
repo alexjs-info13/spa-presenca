@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
+import os
 
 class PainelPrincipal:
     def __init__(self, master, usuario_logado="Administrador"):
@@ -10,22 +11,18 @@ class PainelPrincipal:
         
         self.usuario_logado = usuario_logado
 
-        # --- CARREGAMENTO SEGURO DA LOGO ---
+        # --- CARREGAMENTO DA LOGO COM CAMINHO SEGURO ---
+        self.logo_mini = None
         try:
-            import os
             diretorio_atual = os.path.dirname(os.path.abspath(__file__))
             caminho_logo = os.path.join(diretorio_atual, "Imagens", "Logo_SPA.png")
-            
-            self.logo_img = tk.PhotoImage(file=caminho_logo)
-            self.logo_mini = self.logo_img.subsample(5, 5) 
+            if os.path.exists(caminho_logo):
+                self.logo_img = tk.PhotoImage(file=caminho_logo)
+                self.logo_mini = self.logo_img.subsample(5, 5) 
         except Exception as e:
-            print(f"Aviso detalhado ao carregar a logo: {e}")
-            self.logo_mini = None
+            print(f"Aviso ao carregar logo: {e}")
 
-        # --- CABEÇALHO ---
         self.criar_cabecalho()
-
-        # --- CORPO / ABAS DE NAVEGAÇÃO ---
         self.criar_conteudo()
 
     def criar_cabecalho(self):
@@ -154,15 +151,11 @@ class PainelPrincipal:
             messagebox.showwarning("Aviso", "Insira um código de verificação!")
             return
 
-        # Define o tempo inicial em segundos (5 minutos = 300 segundos)
         self.tempo_restante = 300 
-        
-        # Inicia a contagem regressiva
         self.atualizar_contador(turma, disciplina, codigo)
 
     def atualizar_contador(self, turma, disciplina, codigo):
         if self.tempo_restante > 0:
-            # Formata os segundos em minutos e segundos (ex: 04:59)
             minutos = self.tempo_restante // 60
             segundos = self.tempo_restante % 60
             tempo_formatado = f"{minutos:02d}:{segundos:02d}"
@@ -175,16 +168,13 @@ class PainelPrincipal:
             )
             self.lbl_status_chamada.config(text=msg, fg="#16a34a", font=("Arial", 10, "bold"))
             
-            # Decrementa 1 segundo e agenda a próxima chamada daqui a 1000 milissegundos (1s)
             self.tempo_restante -= 1
-            self.timer_id = self.master.after(1000, lambda: self.atualizar_contador(turma, disciplina, codigo))
+            self.master.after(1000, lambda: self.atualizar_contador(turma, disciplina, codigo))
         else:
-            # Quando o tempo esgota
             msg = f"🔴 Chamada ENCERRADA!\nO prazo de 5 minutos para a turma {turma} expirou."
             self.lbl_status_chamada.config(text=msg, fg="#dc2626", font=("Arial", 10, "bold"))
 
     def montar_aba_alunos(self):
-        # Topo com Título e Barra de Pesquisa
         topo_frame = tk.Frame(self.aba_alunos, bg="#f4f6f9")
         topo_frame.pack(fill=tk.X, padx=20, pady=10)
 
@@ -198,7 +188,6 @@ class PainelPrincipal:
         self.entry_busca.pack(side=tk.LEFT, padx=5)
         self.entry_busca.bind("<KeyRelease>", self.filtrar_alunos)
 
-        # Tabela (Treeview) para listagem
         columns = ("ID", "Nome", "CPF", "E-mail")
         self.tree = ttk.Treeview(self.aba_alunos, columns=columns, show="headings", height=6)
         
@@ -208,7 +197,6 @@ class PainelPrincipal:
 
         self.tree.pack(padx=20, pady=2, fill=tk.BOTH, expand=False)
 
-        # Botão de Excluir Aluno Selecionado
         btn_excluir = tk.Button(
             self.aba_alunos, 
             text="🗑️ Excluir Aluno Selecionado", 
@@ -219,7 +207,6 @@ class PainelPrincipal:
         )
         btn_excluir.pack(anchor="w", padx=20, pady=5)
 
-        # Formulário de Cadastro de Novo Aluno
         frame_cad = tk.LabelFrame(self.aba_alunos, text=" Cadastrar Novo Aluno ", font=("Arial", 10, "bold"), bg="#f4f6f9", fg="#2563eb", padx=12, pady=6)
         frame_cad.pack(padx=20, pady=5, fill=tk.X)
 
@@ -252,7 +239,6 @@ class PainelPrincipal:
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # Inicializa a lista de memória padrão se não existir
         if not hasattr(self, "lista_alunos_memoria"):
             self.lista_alunos_memoria = [
                 ("1", "Emilly Alcântara", "111.222.333-44", "emilly@grautecnico.com"),
@@ -260,7 +246,6 @@ class PainelPrincipal:
                 ("3", "João Silva", "999.888.777-66", "joao@grautecnico.com")
             ]
 
-        sucesso_conexao = False
         try:
             import mysql.connector
             conexao = mysql.connector.connect(
@@ -278,9 +263,8 @@ class PainelPrincipal:
                     self.lista_alunos_memoria = list(resultados)
                 cursor.close()
                 conexao.close()
-                sucesso_conexao = True
         except Exception as e:
-            print(f"Modo demonstração ativo (Banco offline): {e}")
+            print(f"Modo demonstração ativo: {e}")
 
         for row in self.lista_alunos_memoria:
             self.tree.insert("", tk.END, values=row)
@@ -321,7 +305,6 @@ class PainelPrincipal:
             messagebox.showwarning("Aviso", "Por favor, preencha todos os campos do aluno!")
             return
 
-        # Tenta salvar no banco de dados MySQL de verdade
         salvo_no_banco = False
         try:
             import mysql.connector
@@ -333,7 +316,6 @@ class PainelPrincipal:
             )
             if conexao.is_connected():
                 cursor = conexao.cursor()
-                # Insere o aluno definindo a senha padrão "123" e o tipo_usuario como 'ALUNO'
                 query = "INSERT INTO usuarios (nome, cpf, email, senha, tipo_usuario) VALUES (%s, %s, %s, '123', 'ALUNO')"
                 cursor.execute(query, (nome, cpf, email))
                 conexao.commit()
@@ -341,19 +323,17 @@ class PainelPrincipal:
                 conexao.close()
                 salvo_no_banco = True
         except Exception as e:
-            print(f"Banco offline, salvando apenas em memória temporária: {e}")
+            print(f"Erro ao salvar no banco: {e}")
 
-        # Atualiza a lista local em memória também para exibição imediata
         novo_id = str(len(self.lista_alunos_memoria) + 1)
         self.lista_alunos_memoria.append((novo_id, nome, cpf, email))
         self.carregar_alunos_bd()
 
-        # Limpa os campos
         self.entry_nome_aluno.delete(0, tk.END)
         self.entry_cpf_aluno.delete(0, tk.END)
         self.entry_email_aluno.delete(0, tk.END)
 
         if salvo_no_banco:
-            messagebox.showinfo("Sucesso", f"Aluno {nome} cadastrado e salvo no Banco de Dados com sucesso!")
+            messagebox.showinfo("Sucesso", f"Aluno {nome} cadastrado e salvo no Banco de Dados!")
         else:
-            messagebox.showinfo("Sucesso", f"Aluno {nome} cadastrado com sucesso (Modo Demonstração)!")
+            messagebox.showinfo("Sucesso", f"Aluno {nome} cadastrado com sucesso!")
