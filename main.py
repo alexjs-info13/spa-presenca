@@ -1,26 +1,25 @@
 import os
+import sqlite3
 import tkinter as tk
 from tkinter import messagebox
-from mysql.connector import Error
-import mysql.connector
 
 # Importa o painel principal que criamos no outro arquivo
 from painel_principal import PainelPrincipal
 
 
 # ==========================================
-# CLASSE DE CONEXÃO COM O BANCO DE DADOS
+# CLASSE DE CONEXÃO COM O BANCO DE DADOS (SQLITE)
 # ==========================================
 class ConexaoBD:
 
   @staticmethod
   def conectar():
     try:
-      conexao = mysql.connector.connect(
-          host="localhost", database="db_spa_presenca", user="root", password=""
-      )
+      # O SQLite cria automaticamente um ficheiro local 'db_spa_presenca.db' na pasta
+      conexao = sqlite3.connect("db_spa_presenca.db")
       return conexao
-    except Error as e:
+    except Exception as e:
+      print(f"Erro ao conectar ao SQLite: {e}")
       return None
 
 
@@ -48,7 +47,6 @@ class TelaLogin:
       self.lbl_logo = tk.Label(master, image=self.logo_pequena, bg="#f0f2f5")
       self.lbl_logo.pack(pady=(15, 5))
     except Exception as e:
-      # Mostra o erro exato no terminal para sabermos o porquê de falhar
       print(f"Erro ao carregar a imagem: {e}")
 
       # Se a imagem não for encontrada, exibe um título em texto
@@ -142,7 +140,7 @@ class TelaLogin:
       )
       return
 
-    # Validação de Administrador / Acesso Rápido ou via Banco de Dados
+    # Validação de Administrador / Acesso Rápido ou via Banco de Dados SQLite
     if cpf == "admin" and senha == "admin":
       messagebox.showinfo(
           "Sucesso", "Login realizado com sucesso como Administrador!"
@@ -152,26 +150,29 @@ class TelaLogin:
       conexao = ConexaoBD.conectar()
       if conexao:
         try:
-          cursor = conexao.cursor(dictionary=True)
-          query = "SELECT * FROM usuarios WHERE cpf = %s AND senha = %s"
+          # Permite aceder às colunas do SQLite pelo nome (ex: usuario['nome'])
+          conexao.row_factory = sqlite3.Row
+          cursor = conexao.cursor()
+
+          # SQLite utiliza '?' em vez de '%s' para parâmetros
+          query = "SELECT * FROM usuarios WHERE cpf = ? AND senha = ?"
           cursor.execute(query, (cpf, senha))
           usuario = cursor.fetchone()
 
           if usuario:
             messagebox.showinfo("Sucesso", "Login realizado com sucesso!")
-            self.abrir_painel_principal(usuario.get("nome", "Usuário"))
+            self.abrir_painel_principal(usuario["nome"])
           else:
             messagebox.showerror("Erro", "CPF ou senha inválidos no banco.")
           cursor.close()
           conexao.close()
-        except Error as e:
+        except Exception as e:
           messagebox.showerror(
-              "Erro", f"Erro ao consultar banco de dados: {e}"
+              "Erro", f"Erro ao consultar base de dados SQLite: {e}"
           )
       else:
         messagebox.showerror(
-            "Erro",
-            "Falha na conexão com o banco de dados e credenciais inválidas.",
+            "Erro", "Falha na conexão com a base de dados local."
         )
 
   def abrir_painel_principal(self, nome_usuario):

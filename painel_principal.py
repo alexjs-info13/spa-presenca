@@ -1,5 +1,6 @@
 import csv
 import os
+import sqlite3
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
@@ -16,6 +17,9 @@ class PainelPrincipal:
 
     self.usuario_logado = usuario_logado
 
+    # Garante que a base de dados e a tabela de alunos existem no SQLite local
+    self.inicializar_banco()
+
     # --- CARREGAMENTO DA LOGO COM CAMINHO SEGURO ---
     self.logo_mini = None
     try:
@@ -29,6 +33,70 @@ class PainelPrincipal:
 
     self.criar_cabecalho()
     self.criar_conteudo()
+
+  def conectar_bd(self):
+    """Retorna uma conexão ativa com a base de dados SQLite local"""
+    try:
+      conexao = sqlite3.connect("db_spa_presenca.db")
+      return conexao
+    except Exception as e:
+      print(f"Erro ao conectar ao SQLite: {e}")
+      return None
+
+  def inicializar_banco(self):
+    """Cria a tabela de utilizadores no SQLite e insere dados iniciais se estiver vazia"""
+    conexao = self.conectar_bd()
+    if conexao:
+      try:
+        cursor = conexao.cursor()
+        cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS usuarios (
+                        id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nome TEXT NOT NULL,
+                        cpf TEXT NOT NULL UNIQUE,
+                        email TEXT NOT NULL UNIQUE,
+                        senha TEXT NOT NULL,
+                        tipo_usuario TEXT NOT NULL
+                    )
+                """)
+        # Verifica se há registos para inserir os alunos padrão iniciais
+        cursor.execute("SELECT COUNT(*) FROM usuarios")
+        if cursor.fetchone()[0] == 0:
+          alunos_iniciais = [
+              (
+                  "Emilly Alcântara",
+                  "111.222.333-44",
+                  "emilly@grautecnico.com",
+                  "123",
+                  "ALUNO",
+              ),
+              (
+                  "Alex Junio",
+                  "555.666.777-88",
+                  "alex@grautecnico.com",
+                  "123",
+                  "ALUNO",
+              ),
+              (
+                  "João Silva",
+                  "999.888.777-66",
+                  "joao@grautecnico.com",
+                  "123",
+                  "ALUNO",
+              ),
+          ]
+          cursor.executemany(
+              """
+                        INSERT OR IGNORE INTO usuarios (nome, cpf, email, senha, tipo_usuario)
+                        VALUES (?, ?, ?, ?, ?)
+                    """,
+              alunos_iniciais,
+          )
+          conexao.commit()
+        cursor.close()
+        conexao.close()
+      except Exception as e:
+        print(f"Erro ao inicializar base de dados SQLite: {e}")
 
   def criar_cabecalho(self):
     header_frame = tk.Frame(self.master, bg="#1e293b", height=80)
@@ -334,57 +402,56 @@ class PainelPrincipal:
     self.carregar_alunos_bd()
 
   def carregar_alunos_bd(self):
+    """Carrega os alunos diretamente do SQLite de forma permanente"""
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    if not hasattr(self, "lista_alunos_memoria"):
-      self.lista_alunos_memoria = [
-          ("1", "Emilly Alcântara", "111.222.333-44", "emilly@grautecnico.com"),
-          ("2", "Alex Junio", "555.666.777-88", "alex@grautecnico.com"),
-          ("3", "João Silva", "999.888.777-66", "joao@grautecnico.com"),
-      ]
-
-    try:
-      import mysql.connector
-
-      conexao = mysql.connector.connect(
-          host="localhost", database="db_spa_presenca", user="root", password=""
-      )
-      if conexao.is_connected():
+    conexao = self.conectar_bd()
+    if conexao:
+      try:
         cursor = conexao.cursor()
-        query = (
+        cursor.execute(
             "SELECT id_usuario, nome, cpf, email FROM usuarios WHERE"
             " tipo_usuario = 'ALUNO'"
         )
-        cursor.execute(query)
         resultados = cursor.fetchall()
-        if resultados:
-          self.lista_alunos_memoria = list(resultados)
+        for row in resultados:
+          self.tree.insert("", tk.END, values=row)
         cursor.close()
         conexao.close()
-    except Exception as e:
-      print(f"Modo demonstração ativo: {e}")
-
-    for row in self.lista_alunos_memoria:
-      self.tree.insert("", tk.END, values=row)
+      except Exception as e:
+        print(f"Erro ao carregar alunos do SQLite: {e}")
 
   def filtrar_alunos(self, event=None):
+    """Filtra os alunos exibidos na Treeview com base na pesquisa"""
     termo = self.entry_busca.get().lower()
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    if not hasattr(self, "lista_alunos_memoria"):
-      return
-
-    for row in self.lista_alunos_memoria:
-      if (
-          termo in str(row[1]).lower()
-          or termo in str(row[2]).lower()
-          or termo in str(row[3]).lower()
-      ):
-        self.tree.insert("", tk.END, values=row)
+    conexao = self.conectar_bd()
+    if conexao:
+      try:
+        cursor = conexao.cursor()
+        cursor.execute(
+            "SELECT id_usuario, nome, cpf, email FROM usuarios WHERE"
+            " tipo_usuario = 'ALUNO'"
+        )
+        resultados = cursor.fetchall()
+        for row in resultados:
+          # row = (id, nome, cpf, email)
+          if (
+              termo in str(row[1]).lower()
+              or termo in str(row[2]).lower()
+              or termo in str(row[3]).lower()
+          ):
+            self.tree.insert("", tk.END, values=row)
+        cursor.close()
+        conexao.close()
+      except Exception as e:
+        print(f"Erro ao filtrar alunos: {e}")
 
   def excluir_aluno(self):
+    """Exclui o aluno selecionado permanentemente da base de dados SQLite"""
     selecionado = self.tree.selection()
     if not selecionado:
       messagebox.showwarning(
@@ -395,20 +462,31 @@ class PainelPrincipal:
     item_id = selecionado[0]
     valores = self.tree.item(item_id, "values")
     id_aluno = valores[0]
+    nome_aluno = valores[1]
 
     if messagebox.askyesno(
-        "Confirmar Exclusão", f"Deseja realmente excluir o aluno {valores[1]}?"
+        "Confirmar Exclusão", f"Deseja realmente excluir o aluno {nome_aluno}?"
     ):
-      self.lista_alunos_memoria = [
-          a for a in self.lista_alunos_memoria if str(a[0]) != str(id_aluno)
-      ]
-      self.carregar_alunos_bd()
-      messagebox.showinfo("Sucesso", "Aluno excluído com sucesso!")
+      conexao = self.conectar_bd()
+      if conexao:
+        try:
+          cursor = conexao.cursor()
+          cursor.execute("DELETE FROM usuarios WHERE id_usuario = ?", (id_aluno,))
+          conexao.commit()
+          cursor.close()
+          conexao.close()
+          self.carregar_alunos_bd()
+          messagebox.showinfo(
+              "Sucesso", "Aluno excluído com sucesso do banco local!"
+          )
+        except Exception as e:
+          messagebox.showerror("Erro", f"Erro ao excluir aluno: {e}")
 
   def salvar_novo_aluno(self):
-    nome = self.entry_nome_aluno.get()
-    cpf = self.entry_cpf_aluno.get()
-    email = self.entry_email_aluno.get()
+    """Guarda um novo aluno permanentemente no SQLite"""
+    nome = self.entry_nome_aluno.get().strip()
+    cpf = self.entry_cpf_aluno.get().strip()
+    email = self.entry_email_aluno.get().strip()
 
     if not nome or not cpf or not email:
       messagebox.showwarning(
@@ -416,42 +494,36 @@ class PainelPrincipal:
       )
       return
 
-    salvo_no_banco = False
-    try:
-      import mysql.connector
-
-      conexao = mysql.connector.connect(
-          host="localhost", database="db_spa_presenca", user="root", password=""
-      )
-      if conexao.is_connected():
+    conexao = self.conectar_bd()
+    if conexao:
+      try:
         cursor = conexao.cursor()
-        query = (
-            "INSERT INTO usuarios (nome, cpf, email, senha, tipo_usuario)"
-            " VALUES (%s, %s, %s, '123', 'ALUNO')"
+        cursor.execute(
+            """
+                    INSERT INTO usuarios (nome, cpf, email, senha, tipo_usuario)
+                    VALUES (?, ?, ?, '123', 'ALUNO')
+                """,
+            (nome, cpf, email),
         )
-        cursor.execute(query, (nome, cpf, email))
         conexao.commit()
         cursor.close()
         conexao.close()
-        salvo_no_banco = True
-    except Exception as e:
-      print(f"Erro ao salvar no banco: {e}")
 
-    novo_id = str(len(self.lista_alunos_memoria) + 1)
-    self.lista_alunos_memoria.append((novo_id, nome, cpf, email))
-    self.carregar_alunos_bd()
+        # Limpa os campos do formulário
+        self.entry_nome_aluno.delete(0, tk.END)
+        self.entry_cpf_aluno.delete(0, tk.END)
+        self.entry_email_aluno.delete(0, tk.END)
 
-    self.entry_nome_aluno.delete(0, tk.END)
-    self.entry_cpf_aluno.delete(0, tk.END)
-    self.entry_email_aluno.delete(0, tk.END)
-
-    if salvo_no_banco:
-      messagebox.showinfo(
-          "Sucesso",
-          f"Aluno {nome} cadastrado e salvo no Banco de Dados!",
-      )
-    else:
-      messagebox.showinfo("Sucesso", f"Aluno {nome} cadastrado com sucesso!")
+        self.carregar_alunos_bd()
+        messagebox.showinfo(
+            "Sucesso", f"Aluno {nome} cadastrado e gravado no SQLite!"
+        )
+      except sqlite3.IntegrityError:
+        messagebox.showerror(
+            "Erro", "CPF ou E-mail já cadastrados no sistema!"
+        )
+      except Exception as e:
+        messagebox.showerror("Erro", f"Erro ao salvar aluno: {e}")
 
   def montar_aba_relatorios(self):
     """Monta a interface da Aba de Relatórios de Frequência"""
@@ -567,7 +639,6 @@ class PainelPrincipal:
     for item in self.tree_rel.get_children():
       self.tree_rel.delete(item)
 
-    # Dados de demonstração alinhados com o escopo do projeto
     dados_demo = [
         (
             "1",
@@ -621,7 +692,6 @@ class PainelPrincipal:
     try:
       with open(caminho, mode="w", newline="", encoding="utf-8-sig") as arquivo:
         escritor = csv.writer(arquivo, delimiter=";")
-        # Cabeçalho do CSV
         escritor.writerow([
             "ID",
             "Nome do Aluno",
@@ -633,7 +703,6 @@ class PainelPrincipal:
             "Status Final",
         ])
 
-        # Linhas da tabela
         for row_id in self.tree_rel.get_children():
           row = self.tree_rel.item(row_id)["values"]
           escritor.writerow(row)
