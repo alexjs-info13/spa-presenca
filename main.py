@@ -15,7 +15,6 @@ class ConexaoBD:
   @staticmethod
   def conectar():
     try:
-      # O SQLite cria automaticamente um ficheiro local 'db_spa_presenca.db' na pasta
       conexao = sqlite3.connect("db_spa_presenca.db")
       return conexao
     except Exception as e:
@@ -35,12 +34,10 @@ class TelaLogin:
     self.master.config(bg="#f0f2f5")
     self.master.resizable(False, False)
 
-    # Centralizar a janela na tela
     self.centralizar_janela()
 
     # --- TÍTULO E LOGO ---
     try:
-      # Caminho correto considerando a pasta "Imagens"
       self.logo_img = tk.PhotoImage(file="Imagens/Logo_SPA.png")
       self.logo_pequena = self.logo_img.subsample(2, 2)
 
@@ -48,8 +45,6 @@ class TelaLogin:
       self.lbl_logo.pack(pady=(15, 5))
     except Exception as e:
       print(f"Erro ao carregar a imagem: {e}")
-
-      # Se a imagem não for encontrada, exibe um título em texto
       self.lbl_titulo = tk.Label(
           master,
           text="🎓 Sistema SPA",
@@ -75,7 +70,7 @@ class TelaLogin:
     # Campo CPF
     tk.Label(
         form_frame,
-        text="CPF:",
+        text="CPF ou Usuário:",
         font=("Arial", 10, "bold"),
         bg="#ffffff",
         fg="#374151",
@@ -136,55 +131,62 @@ class TelaLogin:
 
     if not cpf or not senha:
       messagebox.showwarning(
-          "Atenção", "Preencha todos os campos (CPF e Senha)!"
+          "Atenção", "Preencha todos os campos (CPF/Usuário e Senha)!"
       )
       return
 
-    # Validação de Administrador / Acesso Rápido ou via Banco de Dados SQLite
-    if cpf == "admin" and senha == "admin":
+    # Validação exclusiva para o Administrador Master de acesso rápido
+    if cpf.lower() == "admin" and senha == "admin":
       messagebox.showinfo(
           "Sucesso", "Login realizado com sucesso como Administrador!"
       )
-      self.abrir_painel_principal("Administrador")
-    else:
-      conexao = ConexaoBD.conectar()
-      if conexao:
-        try:
-          # Permite aceder às colunas do SQLite pelo nome (ex: usuario['nome'])
-          conexao.row_factory = sqlite3.Row
-          cursor = conexao.cursor()
+      self.abrir_painel_principal("Administrador", "ADMIN")
+      return
 
-          # SQLite utiliza '?' em vez de '%s' para parâmetros
-          query = "SELECT * FROM usuarios WHERE cpf = ? AND senha = ?"
-          cursor.execute(query, (cpf, senha))
-          usuario = cursor.fetchone()
+    # Validação via Base de Dados SQLite para Alunos, Professores e outros Admins
+    conexao = ConexaoBD.conectar()
+    if conexao:
+      try:
+        conexao.row_factory = sqlite3.Row
+        cursor = conexao.cursor()
 
-          if usuario:
-            messagebox.showinfo("Sucesso", "Login realizado com sucesso!")
-            self.abrir_painel_principal(usuario["nome"])
-          else:
-            messagebox.showerror("Erro", "CPF ou senha inválidos no banco.")
+        # Procura pelo CPF ou Email e senha correspondentes
+        query = "SELECT * FROM usuarios WHERE (cpf = ? OR email = ?) AND senha = ?"
+        cursor.execute(query, (cpf, cpf, senha))
+        usuario = cursor.fetchone()
+
+        if usuario:
+          messagebox.showinfo("Sucesso", "Login realizado com sucesso!")
+          nome = usuario["nome"]
+          # Pega exatamente o tipo gravado no banco (ex: 'ALUNO', 'PROFESSOR', 'ADMIN')
+          tipo = str(usuario["tipo_usuario"]).upper()
           cursor.close()
           conexao.close()
-        except Exception as e:
+          self.abrir_painel_principal(nome, tipo)
+        else:
+          cursor.close()
+          conexao.close()
           messagebox.showerror(
-              "Erro", f"Erro ao consultar base de dados SQLite: {e}"
+              "Erro", "Credenciais inválidas ou utilizador não encontrado."
           )
-      else:
+      except Exception as e:
         messagebox.showerror(
-            "Erro", "Falha na conexão com a base de dados local."
+            "Erro", f"Erro ao consultar base de dados SQLite: {e}"
         )
+    else:
+      messagebox.showerror(
+          "Erro", "Falha na conexão com a base de dados local."
+      )
 
-  def abrir_painel_principal(self, nome_usuario):
-    self.master.destroy()  # Fecha a janela de login atual
+  def abrir_painel_principal(self, nome_usuario, tipo_usuario):
+    self.master.destroy()
     nova_janela = tk.Tk()
-    PainelPrincipal(nova_janela, usuario_logado=nome_usuario)
+    PainelPrincipal(
+        nova_janela, usuario_logado=nome_usuario, tipo_usuario=tipo_usuario
+    )
     nova_janela.mainloop()
 
 
-# ==========================================
-# EXECUÇÃO DA APLICAÇÃO
-# ==========================================
 if __name__ == "__main__":
   root = tk.Tk()
   app = TelaLogin(root)

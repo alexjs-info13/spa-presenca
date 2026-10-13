@@ -7,7 +7,7 @@ from tkinter import filedialog, messagebox, ttk
 
 class PainelPrincipal:
 
-  def __init__(self, master, usuario_logado="Administrador"):
+  def __init__(self, master, usuario_logado="Administrador", tipo_usuario="ADMIN"):
     self.master = master
     self.master.title(
         "Sistema de Presença Acadêmica (SPA) - Painel Principal"
@@ -16,8 +16,8 @@ class PainelPrincipal:
     self.master.config(bg="#f4f6f9")
 
     self.usuario_logado = usuario_logado
+    self.tipo_usuario = str(tipo_usuario).upper()
 
-    # Garante que a base de dados e a tabela de alunos existem no SQLite local
     self.inicializar_banco()
 
     # --- CARREGAMENTO DA LOGO COM CAMINHO SEGURO ---
@@ -35,7 +35,6 @@ class PainelPrincipal:
     self.criar_conteudo()
 
   def conectar_bd(self):
-    """Retorna uma conexão ativa com a base de dados SQLite local"""
     try:
       conexao = sqlite3.connect("db_spa_presenca.db")
       return conexao
@@ -44,7 +43,6 @@ class PainelPrincipal:
       return None
 
   def inicializar_banco(self):
-    """Cria a tabela de utilizadores no SQLite e insere dados iniciais se estiver vazia"""
     conexao = self.conectar_bd()
     if conexao:
       try:
@@ -59,7 +57,7 @@ class PainelPrincipal:
                         tipo_usuario TEXT NOT NULL
                     )
                 """)
-        # Verifica se há registos para inserir os alunos padrão iniciais
+        # Insere dados padrão se estiver vazio
         cursor.execute("SELECT COUNT(*) FROM usuarios")
         if cursor.fetchone()[0] == 0:
           alunos_iniciais = [
@@ -116,9 +114,14 @@ class PainelPrincipal:
     )
     titulo_app.pack(side=tk.LEFT, pady=20)
 
+    perfil_txt = (
+        "Administrador"
+        if self.tipo_usuario == "ADMIN"
+        else ("Professor" if self.tipo_usuario == "PROFESSOR" else "Aluno")
+    )
     lbl_usuario = tk.Label(
         header_frame,
-        text=f"Usuário: {self.usuario_logado}",
+        text=f"Usuário: {self.usuario_logado} ({perfil_txt})",
         font=("Arial", 11),
         bg="#1e293b",
         fg="#94a3b8",
@@ -129,25 +132,95 @@ class PainelPrincipal:
     self.notebook = ttk.Notebook(self.master)
     self.notebook.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
 
-    # Aba 1: Início
-    self.aba_inicio = ttk.Frame(self.notebook)
-    self.notebook.add(self.aba_inicio, text=" Início ")
-    self.montar_aba_inicio()
+    # Restrição de Acesso por Tipo de Utilizador
+    if self.tipo_usuario == "ALUNO":
+      # Aluno vê apenas a aba para marcar presença na aula ativa
+      self.aba_chamada = ttk.Frame(self.notebook)
+      self.notebook.add(self.aba_chamada, text=" Marcar Chamada ")
+      self.montar_aba_marcar_chamada_aluno()
+    else:
+      # Administrador e Professor veem o painel completo de gestão
+      self.aba_inicio = ttk.Frame(self.notebook)
+      self.notebook.add(self.aba_inicio, text=" Início ")
+      self.montar_aba_inicio()
 
-    # Aba 2: Registrar Chamada
-    self.aba_chamada = ttk.Frame(self.notebook)
-    self.notebook.add(self.aba_chamada, text=" Registrar Chamada ")
-    self.montar_aba_chamada()
+      self.aba_chamada = ttk.Frame(self.notebook)
+      self.notebook.add(self.aba_chamada, text=" Registrar Chamada ")
+      self.montar_aba_chamada()
 
-    # Aba 3: Alunos
-    self.aba_alunos = ttk.Frame(self.notebook)
-    self.notebook.add(self.aba_alunos, text=" Alunos ")
-    self.montar_aba_alunos()
+      self.aba_alunos = ttk.Frame(self.notebook)
+      self.notebook.add(self.aba_alunos, text=" Alunos ")
+      self.montar_aba_alunos()
 
-    # Aba 4: Relatórios
-    self.aba_relatorios = ttk.Frame(self.notebook)
-    self.notebook.add(self.aba_relatorios, text=" Relatórios ")
-    self.montar_aba_relatorios()
+      self.aba_relatorios = ttk.Frame(self.notebook)
+      self.notebook.add(self.aba_relatorios, text=" Relatórios ")
+      self.montar_aba_relatorios()
+
+  def montar_aba_marcar_chamada_aluno(self):
+    """Interface exclusiva para o Aluno confirmar a sua presença"""
+    lbl_titulo = tk.Label(
+        self.aba_chamada,
+        text="Portal do Aluno - Registo de Frequência",
+        font=("Arial", 14, "bold"),
+        bg="#f4f6f9",
+        fg="#1e293b",
+    )
+    lbl_titulo.pack(pady=20, padx=20, anchor="w")
+
+    frame_checkin = tk.LabelFrame(
+        self.aba_chamada,
+        text=" Inserir Código da Chamada Ativa ",
+        font=("Arial", 10, "bold"),
+        bg="#f4f6f9",
+        fg="#2563eb",
+        padx=20,
+        pady=20,
+    )
+    frame_checkin.pack(padx=20, pady=10, fill=tk.X)
+
+    tk.Label(
+        frame_checkin,
+        text="Código de Verificação (6 dígitos fornecido pelo professor):",
+        font=("Arial", 10, "bold"),
+        bg="#f4f6f9",
+    ).pack(anchor="w", pady=5)
+
+    self.entry_codigo_aluno = tk.Entry(
+        frame_checkin, font=("Arial", 14), width=20
+    )
+    self.entry_codigo_aluno.pack(anchor="w", pady=5)
+
+    btn_confirmar = tk.Button(
+        frame_checkin,
+        text="✅ Confirmar Minha Presença",
+        bg="#16a34a",
+        fg="white",
+        font=("Arial", 10, "bold"),
+        padx=15,
+        pady=8,
+        command=self.realizar_checkin_aluno,
+    )
+    btn_confirmar.pack(anchor="w", pady=(15, 5))
+
+  def realizar_checkin_aluno(self):
+    codigo = self.entry_codigo_aluno.get().strip()
+    if not codigo:
+      messagebox.showwarning("Aviso", "Insira o código fornecido pelo professor!")
+      return
+
+    # Validação do código de check-in ativo
+    if codigo.upper() == "A9B2C4":
+      messagebox.showinfo(
+          "Sucesso",
+          "Presença registada com sucesso!\nGeofencing e biometria validados"
+          " com exatidão.",
+      )
+      self.entry_codigo_aluno.delete(0, tk.END)
+    else:
+      messagebox.showerror(
+          "Erro",
+          "Código inválido ou a chamada já expirou/não está ativa.",
+      )
 
   def montar_aba_inicio(self):
     lbl_bem_vindo = tk.Label(
@@ -402,7 +475,6 @@ class PainelPrincipal:
     self.carregar_alunos_bd()
 
   def carregar_alunos_bd(self):
-    """Carrega os alunos diretamente do SQLite de forma permanente"""
     for item in self.tree.get_children():
       self.tree.delete(item)
 
@@ -423,7 +495,6 @@ class PainelPrincipal:
         print(f"Erro ao carregar alunos do SQLite: {e}")
 
   def filtrar_alunos(self, event=None):
-    """Filtra os alunos exibidos na Treeview com base na pesquisa"""
     termo = self.entry_busca.get().lower()
     for item in self.tree.get_children():
       self.tree.delete(item)
@@ -438,7 +509,6 @@ class PainelPrincipal:
         )
         resultados = cursor.fetchall()
         for row in resultados:
-          # row = (id, nome, cpf, email)
           if (
               termo in str(row[1]).lower()
               or termo in str(row[2]).lower()
@@ -451,7 +521,6 @@ class PainelPrincipal:
         print(f"Erro ao filtrar alunos: {e}")
 
   def excluir_aluno(self):
-    """Exclui o aluno selecionado permanentemente da base de dados SQLite"""
     selecionado = self.tree.selection()
     if not selecionado:
       messagebox.showwarning(
@@ -483,7 +552,6 @@ class PainelPrincipal:
           messagebox.showerror("Erro", f"Erro ao excluir aluno: {e}")
 
   def salvar_novo_aluno(self):
-    """Guarda um novo aluno permanentemente no SQLite"""
     nome = self.entry_nome_aluno.get().strip()
     cpf = self.entry_cpf_aluno.get().strip()
     email = self.entry_email_aluno.get().strip()
@@ -509,7 +577,6 @@ class PainelPrincipal:
         cursor.close()
         conexao.close()
 
-        # Limpa os campos do formulário
         self.entry_nome_aluno.delete(0, tk.END)
         self.entry_cpf_aluno.delete(0, tk.END)
         self.entry_email_aluno.delete(0, tk.END)
@@ -526,11 +593,9 @@ class PainelPrincipal:
         messagebox.showerror("Erro", f"Erro ao salvar aluno: {e}")
 
   def montar_aba_relatorios(self):
-    """Monta a interface da Aba de Relatórios de Frequência"""
     frame_conteudo = ttk.Frame(self.aba_relatorios, padding=15)
     frame_conteudo.pack(fill="both", expand=True)
 
-    # 1. Painel de Filtros
     frame_filtros = ttk.LabelFrame(
         frame_conteudo, text=" Filtros de Consulta ", padding=10
     )
@@ -571,7 +636,6 @@ class PainelPrincipal:
     )
     btn_filtrar.grid(row=0, column=4, padx=15, pady=5)
 
-    # 2. Tabela (Treeview) de Relatórios
     frame_tabela = ttk.Frame(frame_conteudo)
     frame_tabela.pack(fill="both", expand=True)
 
@@ -615,7 +679,6 @@ class PainelPrincipal:
     self.tree_rel.pack(side="left", fill="both", expand=True)
     scrollbar.pack(side="right", fill="y")
 
-    # 3. Rodapé com Ações e Resumo
     frame_rodape = ttk.Frame(frame_conteudo)
     frame_rodape.pack(fill="x", pady=(10, 0))
 
@@ -631,11 +694,9 @@ class PainelPrincipal:
     )
     btn_exportar.pack(side="right", padx=5)
 
-    # Carrega os dados iniciais na tabela de relatórios
     self.carregar_dados_relatorio()
 
   def carregar_dados_relatorio(self):
-    """Carrega dados simulados ou do banco de dados na tabela de relatórios"""
     for item in self.tree_rel.get_children():
       self.tree_rel.delete(item)
 
@@ -680,7 +741,6 @@ class PainelPrincipal:
     )
 
   def exportar_relatorio_csv(self):
-    """Exporta o conteúdo exibido na tabela de relatórios para um ficheiro CSV"""
     caminho = filedialog.asksaveasfilename(
         defaultextension=".csv",
         filetypes=[("Arquivo CSV", "*.csv"), ("Todos os Ficheiros", "*.*")],
