@@ -164,12 +164,30 @@ class PainelPrincipal:
     )
     lbl_bem_vindo.pack(pady=30, padx=20, anchor="w")
 
+    # --- BUSCAR DADOS REAIS DO BANCO DE DADOS ---
+    total_alunos = 0
+    conexao = BancoDeDados.conectar()
+    if conexao:
+      try:
+        cursor = conexao.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM usuarios WHERE tipo_usuario = 'ALUNO'"
+        )
+        resultado = cursor.fetchone()
+        if resultado:
+          total_alunos = resultado[0]
+        cursor.close()
+        conexao.close()
+      except Exception as e:
+        print(f"Erro ao contar alunos: {e}")
+
     card_frame = tk.Frame(self.aba_inicio, bg="#f4f6f9")
     card_frame.pack(fill=tk.X, padx=20)
 
-    self.criar_card(card_frame, "Turmas Ativas", "6", "#3b82f6")
-    self.criar_card(card_frame, "Alunos Matriculados", "142", "#10b981")
-    self.criar_card(card_frame, "Chamadas Hoje", "3", "#f59e0b")
+    # Agora o número de alunos matriculados vem direto da tabela de usuários do SQLite
+    self.criar_card(card_frame, "Turmas Ativas", "2", "#3b82f6")
+    self.criar_card(card_frame, "Alunos Matriculados", str(total_alunos), "#10b981")
+    self.criar_card(card_frame, "Chamadas Hoje", "1", "#f59e0b")
 
   def criar_card(self, parent, titulo, valor, cor):
     card = tk.Frame(
