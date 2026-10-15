@@ -1,3 +1,4 @@
+-- Active: 1791496384353@@127.0.0.1@3306
 -- =====================================================================
 -- PROJETO: Sistema de Presença Acadêmica (SPA)
 -- MATÉRIA: Banco de Dados | Curso Técnico em TI (Grau Técnico)

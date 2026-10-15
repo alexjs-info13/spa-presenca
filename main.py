@@ -1,30 +1,10 @@
 import os
-import sqlite3
 import tkinter as tk
 from tkinter import messagebox
 
-# Importa o painel principal que criamos no outro arquivo
+from banco import BancoDeDados
 from painel_principal import PainelPrincipal
 
-
-# ==========================================
-# CLASSE DE CONEXÃO COM O BANCO DE DADOS (SQLITE)
-# ==========================================
-class ConexaoBD:
-
-  @staticmethod
-  def conectar():
-    try:
-      conexao = sqlite3.connect("db_spa_presenca.db")
-      return conexao
-    except Exception as e:
-      print(f"Erro ao conectar ao SQLite: {e}")
-      return None
-
-
-# ==========================================
-# INTERFACE GRÁFICA (TELA DE LOGIN - TKINTER)
-# ==========================================
 class TelaLogin:
 
   def __init__(self, master):
@@ -135,7 +115,7 @@ class TelaLogin:
       )
       return
 
-    # Validação exclusiva para o Administrador Master de acesso rápido
+    # Master Admin de acesso rápido
     if cpf.lower() == "admin" and senha == "admin":
       messagebox.showinfo(
           "Sucesso", "Login realizado com sucesso como Administrador!"
@@ -143,39 +123,16 @@ class TelaLogin:
       self.abrir_painel_principal("Administrador", "ADMIN")
       return
 
-    # Validação via Base de Dados SQLite para Alunos, Professores e outros Admins
-    conexao = ConexaoBD.conectar()
-    if conexao:
-      try:
-        conexao.row_factory = sqlite3.Row
-        cursor = conexao.cursor()
-
-        # Procura pelo CPF ou Email e senha correspondentes
-        query = "SELECT * FROM usuarios WHERE (cpf = ? OR email = ?) AND senha = ?"
-        cursor.execute(query, (cpf, cpf, senha))
-        usuario = cursor.fetchone()
-
-        if usuario:
-          messagebox.showinfo("Sucesso", "Login realizado com sucesso!")
-          nome = usuario["nome"]
-          # Pega exatamente o tipo gravado no banco (ex: 'ALUNO', 'PROFESSOR', 'ADMIN')
-          tipo = str(usuario["tipo_usuario"]).upper()
-          cursor.close()
-          conexao.close()
-          self.abrir_painel_principal(nome, tipo)
-        else:
-          cursor.close()
-          conexao.close()
-          messagebox.showerror(
-              "Erro", "Credenciais inválidas ou utilizador não encontrado."
-          )
-      except Exception as e:
-        messagebox.showerror(
-            "Erro", f"Erro ao consultar base de dados SQLite: {e}"
-        )
+    # Validação via banco.py
+    usuario = BancoDeDados.validar_login(cpf, senha)
+    if usuario:
+      messagebox.showinfo("Sucesso", "Login realizado com sucesso!")
+      nome = usuario["nome"]
+      tipo = str(usuario["tipo_usuario"]).upper()
+      self.abrir_painel_principal(nome, tipo)
     else:
       messagebox.showerror(
-          "Erro", "Falha na conexão com a base de dados local."
+          "Erro", "Credenciais inválidas ou utilizador não encontrado."
       )
 
   def abrir_painel_principal(self, nome_usuario, tipo_usuario):
@@ -188,6 +145,9 @@ class TelaLogin:
 
 
 if __name__ == "__main__":
+  # Inicializa o banco de dados antes de abrir o login
+  BancoDeDados.inicializar_banco()
+
   root = tk.Tk()
   app = TelaLogin(root)
   root.mainloop()

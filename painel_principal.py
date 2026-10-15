@@ -1,8 +1,9 @@
 import csv
 import os
-import sqlite3
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
+
+from banco import BancoDeDados
 
 
 class PainelPrincipal:
@@ -18,8 +19,6 @@ class PainelPrincipal:
     self.usuario_logado = usuario_logado
     self.tipo_usuario = str(tipo_usuario).upper()
 
-    self.inicializar_banco()
-
     # --- CARREGAMENTO DA LOGO COM CAMINHO SEGURO ---
     self.logo_mini = None
     try:
@@ -33,68 +32,6 @@ class PainelPrincipal:
 
     self.criar_cabecalho()
     self.criar_conteudo()
-
-  def conectar_bd(self):
-    try:
-      conexao = sqlite3.connect("db_spa_presenca.db")
-      return conexao
-    except Exception as e:
-      print(f"Erro ao conectar ao SQLite: {e}")
-      return None
-
-  def inicializar_banco(self):
-    conexao = self.conectar_bd()
-    if conexao:
-      try:
-        cursor = conexao.cursor()
-        cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS usuarios (
-                        id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
-                        nome TEXT NOT NULL,
-                        cpf TEXT NOT NULL UNIQUE,
-                        email TEXT NOT NULL UNIQUE,
-                        senha TEXT NOT NULL,
-                        tipo_usuario TEXT NOT NULL
-                    )
-                """)
-        # Insere dados padrão se estiver vazio
-        cursor.execute("SELECT COUNT(*) FROM usuarios")
-        if cursor.fetchone()[0] == 0:
-          alunos_iniciais = [
-              (
-                  "Emilly Alcântara",
-                  "111.222.333-44",
-                  "emilly@grautecnico.com",
-                  "123",
-                  "ALUNO",
-              ),
-              (
-                  "Alex Junio",
-                  "555.666.777-88",
-                  "alex@grautecnico.com",
-                  "123",
-                  "ALUNO",
-              ),
-              (
-                  "João Silva",
-                  "999.888.777-66",
-                  "joao@grautecnico.com",
-                  "123",
-                  "ALUNO",
-              ),
-          ]
-          cursor.executemany(
-              """
-                        INSERT OR IGNORE INTO usuarios (nome, cpf, email, senha, tipo_usuario)
-                        VALUES (?, ?, ?, ?, ?)
-                    """,
-              alunos_iniciais,
-          )
-          conexao.commit()
-        cursor.close()
-        conexao.close()
-      except Exception as e:
-        print(f"Erro ao inicializar base de dados SQLite: {e}")
 
   def criar_cabecalho(self):
     header_frame = tk.Frame(self.master, bg="#1e293b", height=80)
@@ -132,14 +69,11 @@ class PainelPrincipal:
     self.notebook = ttk.Notebook(self.master)
     self.notebook.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
 
-    # Restrição de Acesso por Tipo de Utilizador
     if self.tipo_usuario == "ALUNO":
-      # Aluno vê apenas a aba para marcar presença na aula ativa
       self.aba_chamada = ttk.Frame(self.notebook)
       self.notebook.add(self.aba_chamada, text=" Marcar Chamada ")
       self.montar_aba_marcar_chamada_aluno()
     else:
-      # Administrador e Professor veem o painel completo de gestão
       self.aba_inicio = ttk.Frame(self.notebook)
       self.notebook.add(self.aba_inicio, text=" Início ")
       self.montar_aba_inicio()
@@ -157,7 +91,6 @@ class PainelPrincipal:
       self.montar_aba_relatorios()
 
   def montar_aba_marcar_chamada_aluno(self):
-    """Interface exclusiva para o Aluno confirmar a sua presença"""
     lbl_titulo = tk.Label(
         self.aba_chamada,
         text="Portal do Aluno - Registo de Frequência",
@@ -208,7 +141,6 @@ class PainelPrincipal:
       messagebox.showwarning("Aviso", "Insira o código fornecido pelo professor!")
       return
 
-    # Validação do código de check-in ativo
     if codigo.upper() == "A9B2C4":
       messagebox.showinfo(
           "Sucesso",
@@ -478,47 +410,23 @@ class PainelPrincipal:
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    conexao = self.conectar_bd()
-    if conexao:
-      try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            "SELECT id_usuario, nome, cpf, email FROM usuarios WHERE"
-            " tipo_usuario = 'ALUNO'"
-        )
-        resultados = cursor.fetchall()
-        for row in resultados:
-          self.tree.insert("", tk.END, values=row)
-        cursor.close()
-        conexao.close()
-      except Exception as e:
-        print(f"Erro ao carregar alunos do SQLite: {e}")
+    resultados = BancoDeDados.listar_alunos()
+    for row in resultados:
+      self.tree.insert("", tk.END, values=row)
 
   def filtrar_alunos(self, event=None):
     termo = self.entry_busca.get().lower()
     for item in self.tree.get_children():
       self.tree.delete(item)
 
-    conexao = self.conectar_bd()
-    if conexao:
-      try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            "SELECT id_usuario, nome, cpf, email FROM usuarios WHERE"
-            " tipo_usuario = 'ALUNO'"
-        )
-        resultados = cursor.fetchall()
-        for row in resultados:
-          if (
-              termo in str(row[1]).lower()
-              or termo in str(row[2]).lower()
-              or termo in str(row[3]).lower()
-          ):
-            self.tree.insert("", tk.END, values=row)
-        cursor.close()
-        conexao.close()
-      except Exception as e:
-        print(f"Erro ao filtrar alunos: {e}")
+    resultados = BancoDeDados.listar_alunos()
+    for row in resultados:
+      if (
+          termo in str(row[1]).lower()
+          or termo in str(row[2]).lower()
+          or termo in str(row[3]).lower()
+      ):
+        self.tree.insert("", tk.END, values=row)
 
   def excluir_aluno(self):
     selecionado = self.tree.selection()
@@ -536,20 +444,11 @@ class PainelPrincipal:
     if messagebox.askyesno(
         "Confirmar Exclusão", f"Deseja realmente excluir o aluno {nome_aluno}?"
     ):
-      conexao = self.conectar_bd()
-      if conexao:
-        try:
-          cursor = conexao.cursor()
-          cursor.execute("DELETE FROM usuarios WHERE id_usuario = ?", (id_aluno,))
-          conexao.commit()
-          cursor.close()
-          conexao.close()
-          self.carregar_alunos_bd()
-          messagebox.showinfo(
-              "Sucesso", "Aluno excluído com sucesso do banco local!"
-          )
-        except Exception as e:
-          messagebox.showerror("Erro", f"Erro ao excluir aluno: {e}")
+      if BancoDeDados.excluir_usuario(id_aluno):
+        self.carregar_alunos_bd()
+        messagebox.showinfo("Sucesso", "Aluno excluído com sucesso!")
+      else:
+        messagebox.showerror("Erro", "Erro ao excluir aluno do banco.")
 
   def salvar_novo_aluno(self):
     nome = self.entry_nome_aluno.get().strip()
@@ -562,35 +461,20 @@ class PainelPrincipal:
       )
       return
 
-    conexao = self.conectar_bd()
-    if conexao:
-      try:
-        cursor = conexao.cursor()
-        cursor.execute(
-            """
-                    INSERT INTO usuarios (nome, cpf, email, senha, tipo_usuario)
-                    VALUES (?, ?, ?, '123', 'ALUNO')
-                """,
-            (nome, cpf, email),
-        )
-        conexao.commit()
-        cursor.close()
-        conexao.close()
+    resultado = BancoDeDados.cadastrar_usuario(
+        nome, cpf, email, "123", "ALUNO"
+    )
 
-        self.entry_nome_aluno.delete(0, tk.END)
-        self.entry_cpf_aluno.delete(0, tk.END)
-        self.entry_email_aluno.delete(0, tk.END)
-
-        self.carregar_alunos_bd()
-        messagebox.showinfo(
-            "Sucesso", f"Aluno {nome} cadastrado e gravado no SQLite!"
-        )
-      except sqlite3.IntegrityError:
-        messagebox.showerror(
-            "Erro", "CPF ou E-mail já cadastrados no sistema!"
-        )
-      except Exception as e:
-        messagebox.showerror("Erro", f"Erro ao salvar aluno: {e}")
+    if resultado == True:
+      self.entry_nome_aluno.delete(0, tk.END)
+      self.entry_cpf_aluno.delete(0, tk.END)
+      self.entry_email_aluno.delete(0, tk.END)
+      self.carregar_alunos_bd()
+      messagebox.showinfo("Sucesso", f"Aluno {nome} cadastrado com sucesso!")
+    elif resultado == "duplicado":
+      messagebox.showerror("Erro", "CPF ou E-mail já cadastrados no sistema!")
+    else:
+      messagebox.showerror("Erro", "Erro ao salvar aluno.")
 
   def montar_aba_relatorios(self):
     frame_conteudo = ttk.Frame(self.aba_relatorios, padding=15)
@@ -653,14 +537,8 @@ class PainelPrincipal:
         frame_tabela, columns=colunas, show="headings", height=10
     )
 
-    self.tree_rel.heading("id", text="ID")
-    self.tree_rel.heading("aluno", text="Nome do Aluno")
-    self.tree_rel.heading("cpf", text="CPF")
-    self.tree_rel.heading("turma", text="Turma")
-    self.tree_rel.heading("data_hora", text="Data/Hora")
-    self.tree_rel.heading("status_gps", text="GPS (Geofence)")
-    self.tree_rel.heading("status_bio", text="Biometria")
-    self.tree_rel.heading("presenca", text="Status")
+    for col in colunas:
+      self.tree_rel.heading(col, text=col.replace("_", " ").title())
 
     self.tree_rel.column("id", width=40, anchor="center")
     self.tree_rel.column("aluno", width=160, anchor="w")
