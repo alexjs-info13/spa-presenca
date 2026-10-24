@@ -215,4 +215,23 @@ class BancoDeDados:
 
     @staticmethod
     def excluir_usuario(id_usuario):
-        """Exclui um usuário pelo ID."""
+        """Exclui um usuário limpando primeiro as restrições relacionais."""
+        conexao = BancoDeDados.conectar()
+        if conexao:
+            try:
+                cursor = conexao.cursor()
+                
+                # 1. Remove primeiro o vínculo do aluno com a turma para liberar a chave estrangeira
+                cursor.execute("DELETE FROM alunos_turmas WHERE id_aluno = ?", (int(id_usuario),))
+                
+                # 2. Agora o banco aceita apagar o registro do usuário na tabela principal sem travar
+                cursor.execute("DELETE FROM usuarios WHERE id_usuario = ?", (int(id_usuario),))
+                
+                conexao.commit()
+                cursor.close()
+                conexao.close()
+                return True
+            except Exception as e:
+                print(f"Erro ao excluir usuário no banco: {e}")
+                return False
+        return False
