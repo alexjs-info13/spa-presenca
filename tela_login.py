@@ -153,9 +153,81 @@ class TelaLogin:
         )
 
     def acao_abrir_cadastro(self):
-        """Ação disparada ao clicar em 'Cadastrar Usuário'."""
-        messagebox.showinfo(
-            "Novo Cadastro", 
-            "O auto-cadastro de novos alunos está em fase de homologação.\n\n"
-            "Por enquanto, realize seu registro na aba 'Alunos' do Painel com um Administrador."
+        """Abre uma nova janela pop-up para o autocadastro de alunos."""
+        # Cria a janela flutuante de cadastro
+        janela_cad = tk.Toplevel(self.master)
+        janela_cad.title("SPA - Criar Nova Conta de Aluno")
+        janela_cad.geometry("380x460")
+        janela_cad.config(bg="#f8fafc")
+        janela_cad.resizable(False, False)
+        
+        # Centraliza a janela pop-up na tela
+        janela_cad.transient(self.master)
+        janela_cad.grab_set()
+
+        # Título da Janela
+        tk.Label(
+            janela_cad, text="Cadastro de Aluno", font=("Arial", 14, "bold"), bg="#f8fafc", fg="#1e293b"
+        ).pack(pady=(20, 15))
+
+        # Container dos Campos (Formulário)
+        pad_frame = tk.Frame(janela_cad, bg="#ffffff", bd=1, relief="solid")
+        pad_frame.pack(padx=25, pady=5, fill="both", expand=True)
+
+        # Campo: Nome
+        tk.Label(pad_frame, text="Nome Completo:", font=("Arial", 9, "bold"), bg="#ffffff", fg="#475569").pack(anchor="w", padx=15, pady=(15, 2))
+        ent_nome = tk.Entry(pad_frame, font=("Arial", 10), bd=1, relief="solid")
+        ent_nome.pack(fill="x", padx=15, pady=(0, 10))
+
+        # Campo: CPF
+        tk.Label(pad_frame, text="CPF:", font=("Arial", 9, "bold"), bg="#ffffff", fg="#475569").pack(anchor="w", padx=15, pady=(5, 2))
+        ent_cpf = tk.Entry(pad_frame, font=("Arial", 10), bd=1, relief="solid")
+        ent_cpf.pack(fill="x", padx=15, pady=(0, 10))
+
+        # Campo: E-mail
+        tk.Label(pad_frame, text="E-mail Acadêmico:", font=("Arial", 9, "bold"), bg="#ffffff", fg="#475569").pack(anchor="w", padx=15, pady=(5, 2))
+        ent_email = tk.Entry(pad_frame, font=("Arial", 10), bd=1, relief="solid")
+        ent_email.pack(fill="x", padx=15, pady=(0, 10))
+
+        # Campo: Senha
+        tk.Label(pad_frame, text="Senha de Acesso:", font=("Arial", 9, "bold"), bg="#ffffff", fg="#475569").pack(anchor="w", padx=15, pady=(5, 2))
+        ent_senha = tk.Entry(pad_frame, font=("Arial", 10), show="*", bd=1, relief="solid")
+        ent_senha.pack(fill="x", padx=15, pady=(0, 15))
+
+        # Função interna que valida os dados e envia para o banco.py
+        def salvar_registro():
+            nome = ent_nome.get().strip()
+            cpf = ent_cpf.get().strip()
+            email = ent_email.get().strip()
+            senha = ent_senha.get().strip()
+
+            if not nome or not cpf or not email or not senha:
+                messagebox.showwarning("Aviso", "Por favor, preencha todos os campos!", parent=janela_cad)
+                return
+
+            # Executa a gravação no SQLite usando a regra que criamos no banco.py
+            resultado = BancoDeDados.cadastrar_usuario(nome, cpf, email, senha, "ALUNO")
+
+            if resultado == True:
+                messagebox.showinfo("Sucesso", f"Conta de {nome} criada com sucesso!\nVocê já pode fazer login.", parent=janela_cad)
+                janela_cad.destroy() # Fecha a janela de cadastro
+            elif resultado == "duplicado":
+                messagebox.showerror("Erro", "Este CPF ou E-mail já está cadastrado no sistema!", parent=janela_cad)
+            else:
+                messagebox.showerror("Erro", "Ocorreu um erro interno ao salvar no banco de dados.", parent=janela_cad)
+
+        # Botão Registrar Conta (Verde)
+        btn_registrar = tk.Button(
+            janela_cad,
+            text="🚀 Concluir Meu Cadastro",
+            font=("Arial", 10, "bold"),
+            bg="#16a34a",
+            fg="white",
+            bd=0,
+            relief="flat",
+            cursor="hand2",
+            pady=8,
+            command=salvar_registro
         )
+        btn_registrar.pack(fill="x", padx=25, pady=(15, 25))
+

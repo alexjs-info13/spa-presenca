@@ -203,7 +203,10 @@ class BancoDeDados:
                     "SELECT id_usuario, nome, cpf, email FROM usuarios WHERE tipo_usuario = 'ALUNO'"
                 )
                 linhas = cursor.fetchall()
-                resultados = [(row[0], row[1], row[2], row[3]) for row in linhas]
+                
+                # CORREÇÃO AQUI: Mapeia corretamente cada coluna por sua chave/índice
+                resultados = [(row['id_usuario'], row['nome'], row['cpf'], row['email']) for row in linhas]
+                
                 cursor.close()
                 conexao.close()
             except Exception as e:
